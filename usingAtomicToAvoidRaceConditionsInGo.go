@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 )
 
 var wg sync.WaitGroup
-var mu sync.Mutex
 
 func main() {
 	fmt.Println("CPUs:\t\t", runtime.NumCPU())
 	fmt.Println("Goroutines:\t", runtime.NumGoroutine())
 
-	counter := 0
+	var counter int64
 
 	const goRoutines = 100
 
@@ -21,21 +21,9 @@ func main() {
 
 	for i := 0; i < goRoutines; i++ {
 		go func() {
-			// The mutex lock allows the 'counter' variable to be locked while this block of code is executing.
-			// This effectively eliminates the undesirable results we get from race conditions.
-			mu.Lock()
-
-			v := counter
-
-			// The following line yields other concurrent funcs to be executed
-			runtime.Gosched()
-
-			v++
-			counter = v
-			fmt.Println("count:\t", counter)
-			
-			// Unlocking the counter variable
-			mu.Unlock()
+			// Accessing the counter through the use of package atomic allows us to avoid race conditions
+			atomic.AddInt64(&counter, 1)
+			fmt.Println("counter:", atomic.LoadInt64(&counter))
 
 			// Shutting down this iteration of goroutine
 			wg.Done()
